@@ -8,39 +8,39 @@ struct StochSimulOptions
     nonstationary::Bool
     order::Int64
     periods::Int64
-    function StochSimulOptions(options::Dict{String,Any})
-        display = true
-        dr_algo = "GS"
-        first_period = 1
-        irf = 40
-        LRE_options = LinearRationalExpectationsOptions()
-        nar = 5
-        nonstationary = false
-        order = 1
-        periods = 0
-        print_results = true
-        for (k, v) in pairs(options)
-            if k == "noprint"
-                display = false
-            elseif k == "dr_cycle_reduction" && v::Bool
-                dr_algo = "CR"
-            elseif k == "first_period"
-                first_period = v::Int64
-            elseif k == "irf"
-                irf = v::Int64
-            elseif k == "nar"
-                nar = v::Int64
-            elseif k == "nonstationary"
-                nonstationary = v::Bool
-            elseif k == "order"
-                order = v::Int64
-            elseif k == "periods"
-                periods = v::Int64
-            end
+end
+function StochSimulOptions(options::Dict{String,Any})
+    display = true
+    dr_algo = "GS"
+    first_period = 1
+    irf = 40
+    LRE_options = LinearRationalExpectationsOptions()
+    nar = 5
+    nonstationary = false
+    order = 1
+    periods = 0
+    print_results = true
+    for (k, v) in pairs(options)
+        if k == "noprint"
+            display = false
+        elseif k == "dr_cycle_reduction" && v::Bool
+            dr_algo = "CR"
+        elseif k == "first_period"
+            first_period = v::Int64
+        elseif k == "irf"
+            irf = v::Int64
+        elseif k == "nar"
+            nar = v::Int64
+        elseif k == "nonstationary"
+            nonstationary = v::Bool
+        elseif k == "order"
+            order = v::Int64
+        elseif k == "periods"
+            periods = v::Int64
         end
-        new(display, dr_algo, first_period, irf, LRE_options, nar, 
-        nonstationary, order, periods)
     end
+    StochSimulOptions(display, dr_algo, first_period, irf, LRE_options, nar, 
+    nonstationary, order, periods)
 end
 
 function display_stoch_simul(context::Context, options::StochSimulOptions)
@@ -424,11 +424,13 @@ function compute_first_order_solution!(
                            Matrix(jacobian[:, model.endogenous_nbr .+ findall(lli[2, :] .> 0)]),
                            Matrix(jacobian[:, 2*model.endogenous_nbr .+ findall(lli[3, :] .> 0)]),
                            Matrix(jacobian[:, 3*model.endogenous_nbr .+ collect(1:model.exogenous_nbr)]))
-#    LRE.remove_static!(jacobian, wsLRE)
-    LRE.first_order_solver!(LRE_results, jacobian, options.LRE_options,
-                            workspace(LRE.LinearRationalExpectationsWs, context, algo=options.dr_algo))
+
+
+    # TODO: always GS since jacobian is dense here
+    LRE.solve!(LRE_results, jacobian, options.LRE_options,
+                            workspace(LRE.LinearGSSolverWs, context))
     if variance_decomposition
-        compute_variance!(LRE_results, model.Sigma_e, workspace(LRE.VarianceWs, context, algo=options.dr_algo))
+        LRE.compute_variance!(LRE_results, model.Sigma_e, workspace(LRE.VarianceWs, context, algo=options.dr_algo))
     end
 end
 

@@ -926,7 +926,7 @@ end
 # In the future, if more models should exist, there should
 # be a dict with the model id as key and each time a specific
 # Ws for a specific model is needed that one is taken, or generated.
-for ws_t in (:LinearCyclicReductionWs, :LinearGsSolverWs)
+for ws_t in (:LinearCRWs, :LinearGSWs)
     @eval function workspace(::Type{LRE.$ws_t}, c::Context; model_id = 1)
         m = c.models[model_id]
         if !haskey(c.workspaces, LRE.$ws_t)
@@ -934,27 +934,6 @@ for ws_t in (:LinearCyclicReductionWs, :LinearGsSolverWs)
         end
         return c.workspaces[LRE.$ws_t]
     end
-end
-
-# Probably should think of using an Algo type so that we can  dispatch rather than if elseif below
-# IF more algos than 2 appear.
-function workspace(::Type{LRE.LinearRationalExpectationsWs}, c::Context; model_id=1, algo="GS")
-    m = c.models[model_id]
-    if !haskey(c.workspaces, LRE.LinearRationalExpectationsWs)
-        c.workspaces[LRE.LinearRationalExpectationsWs] = Dict{String, LRE.LinearRationalExpectationsWs}()
-    end
-    if !haskey(c.workspaces[LRE.LinearRationalExpectationsWs], algo)
-        if algo == "GS"
-            solver_ws = workspace(LRE.LinearGsSolverWs, c; model_id=model_id)
-        elseif algo == "CR"
-            solver_ws = workspace(LRE.LinearCyclicReductionWs, c; model_id=model_id)
-        else
-            error("Linear solving algorithm $algo not recognized, allowed: \"GS\", \"CR\"")
-        end
-        c.workspaces[LRE.LinearRationalExpectationsWs][algo] =
-        LRE.LinearRationalExpectationsWs(solver_ws, m.ids)
-    end
-    return c.workspaces[LRE.LinearRationalExpectationsWs][algo]
 end
 
 function workspace(::Type{LRE.LyapdWs}, c::Context; model_id=1)
@@ -971,7 +950,7 @@ function workspace(::Type{LRE.VarianceWs}, c::Context; model_id=1, algo="GS")
     end
     if !haskey(c.workspaces[LRE.VarianceWs], algo)
         lya = workspace(LRE.LyapdWs, c; model_id=model_id)
-        lre = workspace(LRE.LinearRationalExpectationsWs, c; model_id=model_id, algo=algo)
+        lre = algo == "GS" ? workspace(LRE.LinearGSWs, c; model_id=model_id) : workspace(LRE.LinearCRWs, c; model_id=model_id)
         c.workspaces[LRE.VarianceWs][algo] = LRE.VarianceWs(m.endogenous_nbr, lya, m.exogenous_nbr, lre)
     end
     return c.workspaces[LRE.VarianceWs][algo]
